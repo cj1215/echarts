@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飞翔的小鸟</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    #main {
+      width: 100vw;
+      height: 100vh;
+      background: url('./images/bg.jpg');
+      background-size: 100% 100%;
+      position: relative;
+      top: 0;
+      left: 0;
+    }
+
+    .myscore {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 30px;
+    }
+
+    .myscore span {
+      color: red;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="main"></div>
+  <div class="myscore">
+    得分：<span class="score">0</span> 分
+  </div>
+  <script src="./js/echarts.min.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', function () {
+      let main = document.getElementById('main')
+      let charts, option
+      let timer = null // 记录定时器
+      let vw = 0.5 // 横向速度
+      let vh = 0 // 纵向速度
+      let zhuData = []
+      function getData() {
+        let start = 150
+        for (let i = 0; i < 40; i++) {
+          let h = Math.random() * 30 + 20 // 20 - 50
+          zhuData.push([start + 50 * i, h, h + 20 > 100 ? 100 : h + 20])
+        }
+      }
+      getData()
+
+      // 初始化echarts
+      function initB() {
+        charts = echarts.init(main)
+        option = {
+          xAxis: {
+            show: false,
+            type: 'value',
+            min: 0,
+            max: 200
+          },
+          yAxis: {
+            show: false,
+            min: 0,
+            max: 100
+          },
+          series: [
+            {
+              name: '小鸟',
+              type: 'scatter',
+              data: [[50, 80]],
+              symbol: 'image://' + './images/bird.png',
+              symbolSize: 50,
+              animation: false
+            },
+            {
+              name: '自定义管系列',
+              type: 'custom',
+              // data: [[150, 40, 80]],// 150横坐标；40下管的纵坐标；80是上管的纵坐标
+              data: zhuData,
+              itemStyle: {
+                color: {
+                  x: 0,
+                  x2: 1,
+                  y: 0,
+                  y2: 1,
+                  colorStops: [
+                    {
+                      offset: 0,
+                      color: 'red',
+                    },
+                    {
+                      offset: 1,
+                      color: 'blue',
+                    },
+                  ],
+                },
+              },
+              // renderItem 执行次数是由data中的个数决定的
+              renderItem(params, api) {
+                //  这个函数的返回值决定了 我们要做一个什么图形出来
+                // 定义管头的宽高
+                // console.log(params);
+                let headSize = api.size([24, 8])
+
+                // 定义管的宽高
+                let rect = api.size([20, api.value(1)]) // 下管的宽高 [width,height]
+                let rect2 = api.size([20, 100 - api.value(2)]) // 上管的宽高
+
+                //  获取每个水管的起始坐标(像素)
+                let start1 = api.coord([api.value(0) - 10, api.value(1)]) //[x,y]
+                let start2 = api.coord([api.value(0) - 10, 100])
+
+                // 获取每个管头的起始坐标
+                let startHead1 = api.coord([api.value(0) - 12, api.value(1)]) // 下管的坐标
+                let startHead2 = api.coord([api.value(0) - 12, api.value(2) + 8]) // 上管的坐标
+
+                //  坐标系的配置
+                let base = { ...params.coordSys } // x y width height
+
+                //  下管形状
+                let downRect = echarts.graphic.clipRectByRect(
+                  {
+                    x: start1[0],
+                    y: start1[1],
+                    width: rect[0],
+                    height: rect[1],
+                  },
+                  base,
+                )
+                // 下管 头
+                let downRectHead = echarts.graphic.clipRectByRect(
+                  {
+                    x: startHead1[0],
+                    y: startHead1[1],
+                    width: headSize[0],
+                    height: headSize[1],
+                  },
+                  base,
+                )
+
+                // 上管
+                let upRect = echarts.graphic.clipRectByRect(
+                  {
+                    x: start2[0],
+                    y: start2[1],
+                    width: rect2[0],
+                    height: rect2[1],
+                  },
+                  base,
+                )
+                // 上管 头
+                let upRectHead = echarts.graphic.clipRectByRect(
+                  {
+                    x: startHead2[0],
+                    y: startHead2[1],
+                    width: headSize[0],
+                    height: headSize[1],
+                  },
+                  base,
+                )
+
+                return {
+                  type: 'group',
+                  // 如果 diffChildrenByName 设为 true，则会使用 child.name 进行 diff，
+                  // 从而能有更好的过度动画，但是降低性能。缺省为 false。
+                  // diffChildrenByName: true,
+                  children: [
+                    {
+                      type: 'rect',
+                      shape: downRect,
+                      style: api.style(), // 获取的就是上边的那个itemStyle
+                    },
+                    {
+                      type: 'rect',
+                      shape: downRectHead,
+                      style: api.style(), // 获取的就是上边的那个itemStyle
+                    },
+                    {
+                      type: 'rect',
+                      shape: upRect,
+                      style: api.style(), // 获取的就是上边的那个itemStyle
+                    },
+                    {
+                      type: 'rect',
+                      shape: upRectHead,
+                      style: api.style(), // 获取的就是上边的那个itemStyle
+                    },
+                  ],
+                }
+              },
+            }
+          ]
+        }
+        charts.setOption(option)
+        move()
+      }
+      /* 
+        检测小鸟碰撞的思路？
+        用小鸟的坐标和 理他最近的那个柱的坐标比较
+        小鸟坐标： option.series[0].data[0] 
+          用小鸟的右上下角的坐标比较
+          用当前小鸟的横坐标 去50除  得出的那个整数 减去3 得到的就是理他最近的那个管的索引
+      */
+      function judgeCollision(centerCoord) {
+        // centerCoord 小鸟坐标
+        let coordList = [
+          [centerCoord[0] + 15, centerCoord[1] + 1],
+          [centerCoord[0] + 15, centerCoord[1] - 1]
+        ]
+        for (let i = 0; i < 2; i++) {
+          const coord = coordList[i]
+          const index = coord[0] / 50
+          if (index % 1 < 0.6 && zhuData[Math.floor(index) - 3]) {
+            if (zhuData[Math.floor(index) - 3][1] > coord[1] || zhuData[Math.floor(index) - 3][2] < coord[1]) {
+              return true
+            }
+            let score = (Math.floor(index) - 2) * 2
+            document.querySelector('.score').innerText = score
+          }
+        }
+        return false
+      }
+      // 控制小鸟移动 本质就是控制小鸟的坐标
+      function move() {
+        timer = setInterval(() => {
+          charts.clear()
+          vh -= 0.1
+          option.series[0].data[0][0] += vw // 横坐标
+          option.series[0].data[0][1] += vh // 纵坐标
+          // 控制坐标系的范围
+          option.xAxis.min += vw
+          option.xAxis.max += vw
+          let res = judgeCollision(option.series[0].data[0])
+          if (res) {
+            clearInterval(timer)
+            alert('gameover')
+          }
+          charts.setOption(option)
+        }, 30)
+      }
+
+      initB()
+      document.onkeydown = function (e) {
+        if (e.keyCode == 32) {
+          //  敲了空格键
+          vh += 1
+        }
+      }
+    })
+
+  </script>
+</body>
+
+</html>
